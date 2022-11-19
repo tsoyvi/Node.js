@@ -1,0 +1,26 @@
+{
+  "name": "tsoyvi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tsoyvi/Node.js.git"
+  },
+  "author": "tsoyvi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tsoyvi/Node.js/issues"
+  },
+  "homepage": "https://github.com/tsoyvi/Node.js#readme",
+  "dependencies": {
+    "colors": "^1.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.28.0"
+  }
+}
