@@ -1,67 +1,71 @@
+/*
+Напишите программу, которая будет принимать на вход несколько аргументов: дату и время в
+формате «час-день-месяц-год». Задача программы — создавать для каждого аргумента
+таймер с обратным отсчётом: посекундный вывод в терминал состояния таймеров (сколько
+осталось). По истечении какого-либо таймера, вместо сообщения о том, сколько осталось,
+требуется показать сообщение о завершении его работы. Важно, чтобы работа программы
+основывалась на событиях.
+*/
+
+
 const colors = require("colors/safe");
-
-const begin = process.argv[2];
-const end = process.argv[3];
-
-const arraySimple = getArraySimple(begin, end);
+const EventEmitter = require('events');
 
 
-if (checkNumber(begin) && checkNumber(end)) {
-    start();
-}
-else {
-    console.log(colors.red("Ошибка проверки на число"));
-}
+class Handler {
+    static counter = null;
+    static interval = null;
 
+    static createTimer(timer) {
+        this.counter = timer;
+    }
 
-function start() {
-    if (arraySimple.length > 0) {
-        writeConsoleArraySimple(arraySimple);
-    } else {
-        console.log(colors.red("Простых чисел в диапазоне нет"));
+    static timeLeftToString(timeLeft) {
+        const seconds = timeLeft / 1000;
+        const sec = Math.floor((seconds) % 60);
+        const min = Math.floor((seconds / 60) % 60);
+        const hour = Math.floor((seconds / (3600)) % 24);
+        const day = Math.floor(seconds / (3600 * 24));
+        return `осталось ${day} дней и ${hour} часа ${min} минут ${sec} секунд`;
+    }
+
+    static handler() {
+
+        const timeLeft = this.counter.counterInSec() - Date.now();
+
+        if (timeLeft > 0) {
+            console.log(this.timeLeftToString(timeLeft));
+        } else {
+            console.log(this.counter, "Время вышло");
+            clearInterval(this.interval);
+        }
     }
 }
 
 
-function checkNumber(number) {
-    if (number === '') { return false; }
-    return Number.isInteger(+number);
-}
-
-
-function getArraySimple(begin, end) {
-    arr = [];
-    if (begin < 2) { begin = 2 }
-
-    for (let i = begin; i <= end; i++) {
-        let flag = 1;
-        for (let j = 2; (j <= i / 2) && (flag == 1); j = j + 1) {
-            if (i % j == 0) {
-                flag = 0
-            }
-        }
-        if (flag == 1) {
-            arr.push(i);
-        }
+class TimeDate {
+    constructor(timeString) {
+        const [hour, day, month, year] = timeString.split('-');
+        const date = new Date(year, month - 1, day, hour);
+        this.counterSeconds = date.getTime();
     }
-    return arr;
+    counterInSec() {
+        return this.counterSeconds;
+    }
 }
 
-function writeConsoleArraySimple(arr) {
-    arr.forEach((item) => {
-        colorIndex = 0;
-        switch (colorIndex) {
-            case 0:
-                console.log(colors.green(item));
-            case 1:
-                console.log(colors.yellow(item));
-            case 2:
-                console.log(colors.red(item));
 
-            default:
-                break;
-        }
-        colorIndex++;
-        if (colorIndex > 2) { colorIndex = 0 }
-    })
-}
+/**** */
+
+class MyEmitter extends EventEmitter { };
+const emitter = new MyEmitter();
+
+emitter.on('timer', Handler.handler.bind(Handler));
+
+Handler.interval = setInterval(() => { emitter.emit('timer') }, 1000);
+
+const args = process.argv[2];
+
+Handler.createTimer(new TimeDate(args));
+
+// час-день-месяц-год
