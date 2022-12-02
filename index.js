@@ -1,42 +1,125 @@
 /*
-По ссылке вы найдёте файл с логами запросов к серверу весом более 2 Гб. Напишите программу,
-которая находит в этом файле все записи с ip-адресами 89.123.1.41 и 34.48.240.111, а также
-сохраняет их в отдельные файлы с названием %ip-адрес%_requests.log.
+Для этого превратите её в консольное приложение, по аналогии с разобранным примером, и добавьте
+следующие функции:
+1. Возможность передавать путь к директории в программу. Это актуально, когда вы не хотите
+покидать текущую директорию, но надо просмотреть файл, находящийся в другом месте.
+2. В директории переходить во вложенные каталоги.
+3. Во время чтения файлов искать в них заданную строку или паттерн.
 */
 
 const { EOL } = require("os");
 
 const colors = require("colors/safe");
+
 const readline = require("readline");
 const fs = require("fs");
-const path = "./access_tmp.log.txt";
+const fsp = require("fs/promises");
+const path = require("path");
+const inquirer = require("inquirer");
 
+let dirName = '';
 
-const arrIpAddressFind = ['89.123.1.41', '34.48.240.111'];
-
-const rl = readline.createInterface({
-    input: fs.createReadStream(path),
-});
-
-
-let lineNumber = 1;
-rl.on("line", function (lineData) {
-    checkMatchIpAddress(`Line number-${lineNumber}: ${lineData}`);
-    lineNumber++;
-});
-
-
-function writeLine(ipAddress, line) {
-    const writeStream = fs.createWriteStream(`./%${ipAddress}%_requests.log`, { flags: 'a', encoding: "utf8" })
-    writeStream.write(`${line}${EOL}`);
+/*
+Ввод пользователем строки
+*/
+async function inputString(question = '') {
+    return inquirer
+        .prompt([{
+            name: "answer",
+            type: "input",
+            message: question,
+        }])
 }
 
-function checkMatchIpAddress(line) {
-    arrIpAddressFind.forEach(ipAddress => {
-
-        if (line.indexOf(ipAddress) != -1) {
-            console.log(colors.yellow(line.indexOf(ipAddress) + line));
-            writeLine(ipAddress, line);
-        }
+/*
+    выбор пользователем
+*/
+async function selector(choices) {
+    return inquirer.prompt({
+        name: "fileName",
+        type: "list",
+        message: "Выберите файл или папку",
+        choices,
     });
 }
+
+
+async function createList(inDir) {
+    const list = [];
+    for (const item of inDir) {
+        list.push(item)
+    }
+    list.push('..')
+    return list
+}
+
+
+async function readFindInFile(fileName) {
+    // const result = await fsp.readFile(fileName, 'utf-8').then(console.log);
+
+    const result = await inputString('Что будем искать?');
+    const rl = readline.createInterface({
+        input: fs.createReadStream(path.join(fileName)),
+    });
+    rl.on("line", function (lineData) {
+        checkMatchLine(lineData, result.answer);
+    }).on("close", function () {
+        console.log('Конец файла');
+        process.exit(1);
+    })
+}
+
+
+function checkMatchLine(line, search) {
+    if (line.indexOf(search) != -1 && search!='') {
+        console.log(colors.yellow(line));
+    } else {
+        console.log(colors.white(line))
+    }
+}
+
+
+async function checkingForFolder({ fileName }) {
+    if (fileName === '..') {
+        dirName = path.dirname(dirName)
+    }
+    else {
+        const scr = await fsp.stat(path.join(dirName, fileName))
+        if (!scr.isFile()) {
+            dirName += `\\${fileName}`;
+        }
+        else {
+            result = await readFindInFile(path.join(dirName, fileName));
+            // return result;
+        }
+    }
+    result = await readDir();
+    return false;
+}
+
+async function readDir() {
+    console.log(colors.yellow(dirName));
+
+    result = await fsp.readdir(path.join(dirName));
+    result = await createList(result);
+    result = await selector(result);
+    result = await checkingForFolder(result);
+}
+
+async function inputPath() {
+    path_string = await inputString('Видите путь ->');
+    try {
+        if (fs.lstatSync(path_string.answer).isDirectory()) {
+            dirName = path_string.answer;
+        }
+    } catch (err) {
+
+        dirName = path.resolve();
+        console.log(colors.red('Директория не существует. Установлен путь по умолчанию'));
+    }
+    readDir();
+}
+
+
+
+inputPath();
