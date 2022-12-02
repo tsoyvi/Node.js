@@ -1,67 +1,125 @@
+/*
+Для этого превратите её в консольное приложение, по аналогии с разобранным примером, и добавьте
+следующие функции:
+1. Возможность передавать путь к директории в программу. Это актуально, когда вы не хотите
+покидать текущую директорию, но надо просмотреть файл, находящийся в другом месте.
+2. В директории переходить во вложенные каталоги.
+3. Во время чтения файлов искать в них заданную строку или паттерн.
+*/
+
+const { EOL } = require("os");
+
 const colors = require("colors/safe");
 
-const begin = process.argv[2];
-const end = process.argv[3];
+const readline = require("readline");
+const fs = require("fs");
+const fsp = require("fs/promises");
+const path = require("path");
+const inquirer = require("inquirer");
 
-const arraySimple = getArraySimple(begin, end);
+let dirName = '';
 
-
-if (checkNumber(begin) && checkNumber(end)) {
-    start();
+/*
+Ввод пользователем строки
+*/
+async function inputString(question = '') {
+    return inquirer
+        .prompt([{
+            name: "answer",
+            type: "input",
+            message: question,
+        }])
 }
-else {
-    console.log(colors.red("Ошибка проверки на число"));
+
+/*
+    выбор пользователем
+*/
+async function selector(choices) {
+    return inquirer.prompt({
+        name: "fileName",
+        type: "list",
+        message: "Выберите файл или папку",
+        choices,
+    });
 }
 
 
-function start() {
-    if (arraySimple.length > 0) {
-        writeConsoleArraySimple(arraySimple);
-    } else {
-        console.log(colors.red("Простых чисел в диапазоне нет"));
+async function createList(inDir) {
+    const list = [];
+    for (const item of inDir) {
+        list.push(item)
     }
+    list.push('..')
+    return list
 }
 
 
-function checkNumber(number) {
-    if (number === '') { return false; }
-    return Number.isInteger(+number);
-}
+async function readFindInFile(fileName) {
+    // const result = await fsp.readFile(fileName, 'utf-8').then(console.log);
 
-
-function getArraySimple(begin, end) {
-    arr = [];
-    if (begin < 2) { begin = 2 }
-
-    for (let i = begin; i <= end; i++) {
-        let flag = 1;
-        for (let j = 2; (j <= i / 2) && (flag == 1); j = j + 1) {
-            if (i % j == 0) {
-                flag = 0
-            }
-        }
-        if (flag == 1) {
-            arr.push(i);
-        }
-    }
-    return arr;
-}
-
-function writeConsoleArraySimple(arr) {
-    arr.forEach((item) => {
-        colorIndex = 0;
-        switch (colorIndex) {
-            case 0:
-                console.log(colors.green(item));
-            case 1:
-                console.log(colors.yellow(item));
-            case 2:
-                console.log(colors.red(item));
-
-            default:
-                break;
-        }
-        colorIndex++;
-        if (colorIndex > 2) { colorIndex = 0 }
+    const result = await inputString('Что будем искать?');
+    const rl = readline.createInterface({
+        input: fs.createReadStream(path.join(fileName)),
+    });
+    rl.on("line", function (lineData) {
+        checkMatchLine(lineData, result.answer);
+    }).on("close", function () {
+        console.log('Конец файла');
+        process.exit(1);
     })
 }
+
+
+function checkMatchLine(line, search) {
+    if (line.indexOf(search) != -1 && search!='') {
+        console.log(colors.yellow(line));
+    } else {
+        console.log(colors.white(line))
+    }
+}
+
+
+async function checkingForFolder({ fileName }) {
+    if (fileName === '..') {
+        dirName = path.dirname(dirName)
+    }
+    else {
+        const scr = await fsp.stat(path.join(dirName, fileName))
+        if (!scr.isFile()) {
+            dirName += `\\${fileName}`;
+        }
+        else {
+            result = await readFindInFile(path.join(dirName, fileName));
+            // return result;
+        }
+    }
+    result = await readDir();
+    return false;
+}
+
+async function readDir() {
+    console.log(colors.yellow(dirName));
+
+    result = await fsp.readdir(path.join(dirName));
+    result = await createList(result);
+    result = await selector(result);
+    result = await checkingForFolder(result);
+}
+
+async function inputPath() {
+    path_string = await inputString('Видите путь ->');
+    try {
+        if (fs.lstatSync(path_string.answer).isDirectory()) {
+            dirName = path_string.answer;
+        }
+    } catch (err) {
+
+        dirName = path.resolve();
+        console.log(colors.red('Директория не существует. Установлен путь по умолчанию'));
+    }
+    readDir();
+}
+
+
+
+inputPath();
