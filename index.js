@@ -23,34 +23,7 @@ const port = 3000;
 
 let dirName = path.resolve();
 
-
-async function handel(queryParams) {
-    console.log(queryParams.pathname);
-    const pathName = queryParams.pathname;
-
-    const obj = Object.assign({}, queryParams.query)
-    if (obj.file !== undefined) {
-
-        const filePath = path.join(dirName, pathName, obj.file);
-        const readStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 })
-
-        readStream.on('data', (chunk) => {
-            console.log(chunk)
-            // response.write(chunk)
-        })
-
-        /*  readStream.on('end', () => {
-              response.end()
-          })*/
-
-    }
-
-    result = await readDir(pathName);
-    return result;
-}
-
 const server = http.createServer();
-
 
 server.on('request', (request, response) => {
 
@@ -67,23 +40,24 @@ server.on('request', (request, response) => {
 
         if (obj.file !== undefined) {
             const filePath = path.join(dirName, pathName, obj.file);
-            const readStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64})
+            const readStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 })
 
             readStream.on('data', (chunk) => {
                 // console.log(chunk)
                 response.write(chunk);
             })
             readStream.on('end', () => {
-               // response.end()
+                readDir(pathName).then((result) => {
+                    response.write(result);
+                    response.end();
+                });
             })
+        } else {
+            readDir(pathName).then((result) => {
+                response.write(result);
+                response.end();
+            });
         }
-
-        readDir(pathName).then((result) => {
-            response.write(result);
-            response.end();
-
-        });
-
 
     } else {
         response.end('Method Not Allowed');
@@ -93,7 +67,6 @@ server.on('request', (request, response) => {
 
 
 server.listen(port, host, () => console.log(`Server running at http://${host}:${port}`))
-
 
 
 async function listDirHTML(pathName, list) {
