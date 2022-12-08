@@ -1,67 +1,105 @@
+/*
+Используя наработки практического задания прошлого урока, создайте веб-версию приложения.
+Сделайте так, чтобы при запуске она:
+● показывала содержимое текущей директории;
+● давала возможность навигации по каталогам из исходной папки;
+● при выборе файла показывала его содержимое.
+
+*/
+
 const colors = require("colors/safe");
 
-const begin = process.argv[2];
-const end = process.argv[3];
-
-const arraySimple = getArraySimple(begin, end);
-
-
-if (checkNumber(begin) && checkNumber(end)) {
-    start();
-}
-else {
-    console.log(colors.red("Ошибка проверки на число"));
-}
+const readline = require("readline");
+const http = require('http');
+const path = require("path");
+const fsp = require("fs/promises");
+const url = require("url");
+const fs = require('fs');
 
 
-function start() {
-    if (arraySimple.length > 0) {
-        writeConsoleArraySimple(arraySimple);
+const host = 'localhost';
+const port = 3000;
+
+
+let dirName = path.resolve();
+
+const server = http.createServer();
+
+server.on('request', (request, response) => {
+
+    if (request.method === 'GET') {
+        response.setHeader('Content-Type', 'text/html');
+
+
+        const queryParams = url.parse(request.url, true);
+
+        console.log(queryParams.pathname);
+        const pathName = queryParams.pathname;
+
+        const obj = Object.assign({}, queryParams.query);
+
+        if (obj.file !== undefined) {
+            const filePath = path.join(dirName, pathName, obj.file);
+            const readStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 })
+
+            readStream.on('data', (chunk) => {
+                // console.log(chunk)
+                response.write(chunk);
+            })
+            readStream.on('end', () => {
+                readDir(pathName).then((result) => {
+                    response.write(result);
+                    response.end();
+                });
+            })
+        } else {
+            readDir(pathName).then((result) => {
+                response.write(result);
+                response.end();
+            });
+        }
+
     } else {
-        console.log(colors.red("Простых чисел в диапазоне нет"));
+        response.end('Method Not Allowed');
     }
-}
+
+})
 
 
-function checkNumber(number) {
-    if (number === '') { return false; }
-    return Number.isInteger(+number);
-}
+server.listen(port, host, () => console.log(`Server running at http://${host}:${port}`))
 
 
-function getArraySimple(begin, end) {
-    arr = [];
-    if (begin < 2) { begin = 2 }
+async function listDirHTML(pathName, list) {
+    let strHTML = '<ul>';
+    strHTML += `<a href="${path.dirname(pathName)}"><li>[...]</a></li>`;
 
-    for (let i = begin; i <= end; i++) {
-        let flag = 1;
-        for (let j = 2; (j <= i / 2) && (flag == 1); j = j + 1) {
-            if (i % j == 0) {
-                flag = 0
-            }
-        }
-        if (flag == 1) {
-            arr.push(i);
+    for (const item of list) {
+        result = await checkingForFolder(path.join(pathName, item));
+        if (result) {
+            strHTML += `<li><a href="${path.join(pathName, item)}">${item}</a></li>`;
+        } else {
+            strHTML += `<li><a href="?file=${item}">${item}</a></li>`;
         }
     }
-    return arr;
+
+    strHTML += '</ul>';
+    return strHTML;
 }
 
-function writeConsoleArraySimple(arr) {
-    arr.forEach((item) => {
-        colorIndex = 0;
-        switch (colorIndex) {
-            case 0:
-                console.log(colors.green(item));
-            case 1:
-                console.log(colors.yellow(item));
-            case 2:
-                console.log(colors.red(item));
 
-            default:
-                break;
-        }
-        colorIndex++;
-        if (colorIndex > 2) { colorIndex = 0 }
-    })
+async function checkingForFolder(fileName) {
+    const scr = await fsp.stat(path.join(dirName, fileName))
+    if (!scr.isFile()) {
+        return true;
+    }
+    return false;
+}
+
+async function readDir(pathName) {
+    console.log(colors.yellow(path.join(dirName, pathName)));
+    result = await fsp.readdir(path.join(dirName, pathName));
+
+    result = await listDirHTML(pathName, result);
+    // console.log(colors.red(result));
+    return result;
 }
