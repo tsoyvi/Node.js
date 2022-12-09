@@ -1,0 +1,34 @@
+<html>
+
+<head>
+    <title>Messanger</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"
+        integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI"
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <h1>Messanger</h1>
+    <input type="text" id="input" autofocus />
+    <input type="submit" id="send" value="Send" />
+    <div id="messages"></div>
+</body>
+
+<script type="text/javascript">
+    const socket = io('localhost:3000')
+    socket.on('connect', () => console.log('Connection with localhost:3000 created'))
+    socket.on('server-msg', ({ msg }) => {
+        const msgSpan = document.createElement('span').innerHTML = msg;
+        document.getElementById('messages').append(msgSpan)
+        document.getElementById('messages').append(document.createElement('br'))
+    })
+
+    document.getElementById('send')
+        .onclick = function () {
+            socket.emit('client-msg', { msg: document.getElementById('input').value })
+            document.getElementById('input').value = '';
+        }
+
+</script>
+
+</html>

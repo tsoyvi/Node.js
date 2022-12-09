@@ -1,105 +1,65 @@
 /*
-Используя наработки практического задания прошлого урока, создайте веб-версию приложения.
-Сделайте так, чтобы при запуске она:
-● показывала содержимое текущей директории;
-● давала возможность навигации по каталогам из исходной папки;
-● при выборе файла показывала его содержимое.
+В разделе, посвящённом веб-сокетам, мы сделали базовую основу для простого чата. В ней клиент
+может посылать сообщения серверу и получать их обратно в виде обратно отображаемой строки. Мы
+сделали оповещение всех клиентов о подключении нового клиента.
 
+Дополните это приложение следующим инструментарием:
+ 
+ 1. Пользователи должны видеть не только сообщение о подключении нового клиента, но и об
+отключении клиента или переподключении.
+
+ 2. На странице приложения важно, чтобы сообщения от разных клиентов различались. Для этого
+генерируйте ник пользователя при каждом его подключении.
+
+ 3. Пользователи должны видеть сообщения к серверу от других пользователей.
+
+ Дополните вашу веб-версию файлового менеджера следующим инструментарием:
+
+ 1. Добавьте счётчик посетителей на странице, который работал бы через сокеты и динамически
+обновлялся на всех клиентах при их подключении или отключении.
+ 
+ 2. Вынесете инструментарий поиска по содержимому файла из заданий уроков 3 и 4 в
+отдельный поток воркера.
 */
 
-const colors = require("colors/safe");
 
-const readline = require("readline");
 const http = require('http');
-const path = require("path");
-const fsp = require("fs/promises");
-const url = require("url");
 const fs = require('fs');
+const path = require("path");
+
+// const Server = require ("socket")
+const Server = require('socket.io');
 
 
-const host = 'localhost';
+// import { Server } from "socket.io"
+
+const host = "localhost";
 const port = 3000;
 
 
-let dirName = path.resolve();
+const server = http.createServer((req, res) => {
+    if (["GET", "POST", "PUT"].includes(req.method)) {
 
-const server = http.createServer();
+        const filePath = path.join(process.cwd(), "./index.html");
+        const rs = fs.createReadStream(filePath);
 
-server.on('request', (request, response) => {
-
-    if (request.method === 'GET') {
-        response.setHeader('Content-Type', 'text/html');
-
-
-        const queryParams = url.parse(request.url, true);
-
-        console.log(queryParams.pathname);
-        const pathName = queryParams.pathname;
-
-        const obj = Object.assign({}, queryParams.query);
-
-        if (obj.file !== undefined) {
-            const filePath = path.join(dirName, pathName, obj.file);
-            const readStream = fs.createReadStream(filePath, { encoding: 'utf-8', highWaterMark: 64 })
-
-            readStream.on('data', (chunk) => {
-                // console.log(chunk)
-                response.write(chunk);
-            })
-            readStream.on('end', () => {
-                readDir(pathName).then((result) => {
-                    response.write(result);
-                    response.end();
-                });
-            })
-        } else {
-            readDir(pathName).then((result) => {
-                response.write(result);
-                response.end();
-            });
-        }
-
-    } else {
-        response.end('Method Not Allowed');
+        rs.pipe(res);
     }
+});
+
+const io = Server(server);
+io.on('connection', (client) => {
+    console.log(client)
+    console.log('Websocket connected')
+
+    client.on('client-msg', (data) => {
+        client.broadcast.emit('server-msg', { msg: data.msg })
+        client.emit('server-msg', { msg: data.msg })
+    })
 
 })
 
 
-server.listen(port, host, () => console.log(`Server running at http://${host}:${port}`))
-
-
-async function listDirHTML(pathName, list) {
-    let strHTML = '<ul>';
-    strHTML += `<a href="${path.dirname(pathName)}"><li>[...]</a></li>`;
-
-    for (const item of list) {
-        result = await checkingForFolder(path.join(pathName, item));
-        if (result) {
-            strHTML += `<li><a href="${path.join(pathName, item)}">${item}</a></li>`;
-        } else {
-            strHTML += `<li><a href="?file=${item}">${item}</a></li>`;
-        }
-    }
-
-    strHTML += '</ul>';
-    return strHTML;
-}
-
-
-async function checkingForFolder(fileName) {
-    const scr = await fsp.stat(path.join(dirName, fileName))
-    if (!scr.isFile()) {
-        return true;
-    }
-    return false;
-}
-
-async function readDir(pathName) {
-    console.log(colors.yellow(path.join(dirName, pathName)));
-    result = await fsp.readdir(path.join(dirName, pathName));
-
-    result = await listDirHTML(pathName, result);
-    // console.log(colors.red(result));
-    return result;
-}
+server.listen(port, host, () =>
+    console.log(`Server running at http://${host}:${port}`)
+);
