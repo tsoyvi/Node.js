@@ -1,33 +1,83 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-    <title>Messanger</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messenger</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"
         integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI"
         crossorigin="anonymous"></script>
 </head>
 
 <body>
-    <h1>Messanger</h1>
-    <input type="text" id="input" autofocus />
+    <h1>Messenger</h1>
+    <div>В чате пользователей: <span id="countUsers"></span> </div>
+    <input type="text" id="nickName" />
+    <input type="text" id="messText" autofocus />
     <input type="submit" id="send" value="Send" />
     <div id="messages"></div>
 </body>
 
 <script type="text/javascript">
-    const socket = io('localhost:3000')
-    socket.on('connect', () => console.log('Connection with localhost:3000 created'))
-    socket.on('server-msg', ({ msg }) => {
-        const msgSpan = document.createElement('span').innerHTML = msg;
-        document.getElementById('messages').append(msgSpan)
-        document.getElementById('messages').append(document.createElement('br'))
+
+    const nickName = document.getElementById('nickName');
+    const messText = document.getElementById('messText');
+    const blockMessages = document.getElementById('messages');
+    const countUsers = document.getElementById('countUsers');
+
+    const socket = io('localhost:3000');
+
+    socket.on('connect', () => {
+        if (nickName.value == '') {
+            nickName.value = randomName();
+        };
+
+        console.log('Connection with localhost:3000 created');
+
+        socket.emit('userData', { nickName: nickName.value });
+
+    });
+
+
+    socket.on('server-msg', ({ msg, nickName }) => {
+        const msgSpan = document.createElement('span').innerHTML = `${nickName}: ${msg}`;
+        blockMessages.append(msgSpan);
+        blockMessages.append(document.createElement('br'));
+    })
+
+
+    socket.on('server-msg-service', ({ msg }) => {
+        const msgSpan = document.createElement('span').innerHTML = `${msg}`;
+        blockMessages.append(msgSpan);
+        blockMessages.append(document.createElement('br'));
+    })
+
+    socket.on('count-clients', ({ countClients }) => {
+        console.log(countClients);
+        countUsers.innerHTML = countClients;
     })
 
     document.getElementById('send')
         .onclick = function () {
-            socket.emit('client-msg', { msg: document.getElementById('input').value })
-            document.getElementById('input').value = '';
+
+            if (nickName.value == '') {
+                nickName.value = randomName();
+            };
+
+            if (messText.value != '') {
+                socket.emit('client-msg', { msg: messText.value, nickName: nickName.value })
+                messText.value = '';
+            }
+
         }
+
+    //Генератор случайных символов
+    const randomName = () => {
+        const randomName = (Math.random() + 1).toString(36).substring(7);
+        return randomName;
+    }
 
 </script>
 
