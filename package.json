@@ -18,7 +18,9 @@
   },
   "homepage": "https://github.com/tsoyvi/Node.js#readme",
   "dependencies": {
-    "colors": "^1.4.0"
+    "colors": "^1.4.0",
+    "inquirer": "^8.2.5",
+    "socket.io": "^4.5.4"
   },
   "devDependencies": {
     "eslint": "^8.28.0"

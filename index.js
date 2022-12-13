@@ -1,67 +1,14 @@
-const colors = require("colors/safe");
+const { Worker } = require('worker_threads')
+const os = require("os");
 
-const begin = process.argv[2];
-const end = process.argv[3];
-
-const arraySimple = getArraySimple(begin, end);
+const numCPUs = os.cpus().length;
 
 
-if (checkNumber(begin) && checkNumber(end)) {
-    start();
-}
-else {
-    console.log(colors.red("Ошибка проверки на число"));
-}
+let workerData = { portOfSet: 0 };
+const worker1 = new Worker('./chat.js',  { workerData } );
+worker1.on("message", console.log);
 
 
-function start() {
-    if (arraySimple.length > 0) {
-        writeConsoleArraySimple(arraySimple);
-    } else {
-        console.log(colors.red("Простых чисел в диапазоне нет"));
-    }
-}
-
-
-function checkNumber(number) {
-    if (number === '') { return false; }
-    return Number.isInteger(+number);
-}
-
-
-function getArraySimple(begin, end) {
-    arr = [];
-    if (begin < 2) { begin = 2 }
-
-    for (let i = begin; i <= end; i++) {
-        let flag = 1;
-        for (let j = 2; (j <= i / 2) && (flag == 1); j = j + 1) {
-            if (i % j == 0) {
-                flag = 0
-            }
-        }
-        if (flag == 1) {
-            arr.push(i);
-        }
-    }
-    return arr;
-}
-
-function writeConsoleArraySimple(arr) {
-    arr.forEach((item) => {
-        colorIndex = 0;
-        switch (colorIndex) {
-            case 0:
-                console.log(colors.green(item));
-            case 1:
-                console.log(colors.yellow(item));
-            case 2:
-                console.log(colors.red(item));
-
-            default:
-                break;
-        }
-        colorIndex++;
-        if (colorIndex > 2) { colorIndex = 0 }
-    })
-}
+workerData = { portOfSet: 1 };
+const worker2 = new Worker('./file_reader.js', { workerData });
+worker2.on("message", console.log);
